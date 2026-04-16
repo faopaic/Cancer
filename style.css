@@ -1,7 +1,15 @@
 body {
-    text-align: center;
+  text-align: center;
+  margin-top: 25px;
 }
 
-img {
-    width: 600px; /* サイズ調整 */
+.gacha {
+  position: relative;
+  display: inline-block;
+}
+
+.gacha img {
+  width: 750px;
+  height: auto;
+  display: block;
 }
