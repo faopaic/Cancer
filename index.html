@@ -10,8 +10,12 @@
     <main>
       <section class="login-page">
         <div class="login-box">
-          <h1>ログイン</h1>
-          
+          <h1 id="authTitle">ログイン</h1>
+
+          <div class="auth-tabs" role="tablist" aria-label="認証メニュー">
+            <button type="button" class="auth-tab active" id="showLoginTab" role="tab" aria-selected="true">ログイン</button>
+            <button type="button" class="auth-tab" id="showRegisterTab" role="tab" aria-selected="false">新規登録</button>
+          </div>
 
           <form class="login-form" id="loginForm" novalidate>
             <label>
@@ -20,12 +24,53 @@
             </label>
             <label>
               <span>パスワード</span>
-              <input id="password" type="password" placeholder="パスワードを入力" autocomplete="current-password">
+              <div class="password-field">
+                <input id="password" type="password" placeholder="パスワードを入力" autocomplete="current-password">
+                <button type="button" class="password-toggle" data-target="password" aria-label="パスワードを表示">
+                  <span class="eye-icon" aria-hidden="true"></span>
+                </button>
+              </div>
             </label>
             <div class="login-actions">
               <button id="loginButton" type="submit">ログイン</button>
             </div>
             <div class="login-error" id="loginError"></div>
+          </form>
+
+          <form class="login-form hidden" id="registerForm" novalidate>
+            <label>
+              <span>ユーザー名</span>
+              <input id="registerUsername" type="text" placeholder="3文字以上で入力" autocomplete="username">
+            </label>
+            <label>
+              <span>パスワード</span>
+              <div class="password-field">
+                <input id="registerPassword" type="password" placeholder="6文字以上で入力" autocomplete="new-password">
+                <button type="button" class="password-toggle" data-target="registerPassword" aria-label="パスワードを表示">
+                  <span class="eye-icon" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="password-strength" id="registerStrength" aria-live="polite">
+                <div class="password-strength-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="registerStrengthBar">
+                  <span id="registerStrengthFill"></span>
+                </div>
+                <p id="registerStrengthText">強度: 未入力</p>
+              </div>
+            </label>
+            <label>
+              <span>パスワード確認</span>
+              <div class="password-field">
+                <input id="registerPasswordConfirm" type="password" placeholder="もう一度入力" autocomplete="new-password">
+                <button type="button" class="password-toggle" data-target="registerPasswordConfirm" aria-label="パスワードを表示">
+                  <span class="eye-icon" aria-hidden="true"></span>
+                </button>
+              </div>
+            </label>
+            <div class="login-actions">
+              <button id="registerButton" type="submit">登録する</button>
+            </div>
+            <div class="login-error" id="registerError"></div>
+            <div class="register-success" id="registerSuccess"></div>
           </form>
         </div>
       </section>
