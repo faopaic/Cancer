@@ -12,6 +12,12 @@ const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_ATTEMPT_WINDOW_SECONDS = 300;
 const LOGIN_LOCK_SECONDS = 600;
 
+// パスワード単位のレート制限（リバースブルートフォース対策）
+const PASSWORD_RATE_LIMIT_FILE = 'cancer_app_password_rate_limit.json';
+const PASSWORD_MAX_ATTEMPTS = 10;
+const PASSWORD_ATTEMPT_WINDOW_SECONDS = 300;
+const PASSWORD_LOCK_SECONDS = 600;
+
 function getPdo(): PDO
 {
     static $pdo = null;
@@ -135,6 +141,12 @@ function buildLoginRateLimitKey(string $username): string
     return hash('sha256', strtolower($username) . '|' . $ip);
 }
 
+function buildPasswordRateLimitKey(string $password): string
+{
+    // パスワード文字列をハッシュ化してキーにする（IPは含めない）
+    return hash('sha256', 'pw|' . $password);
+}
+
 function checkLoginRateLimit(string $key): array
 {
     $now = time();
@@ -240,6 +252,111 @@ function clearLoginFailures(string $key): void
     }
 }
 
+function registerPasswordFailure(string $key): void
+{
+    $now = time();
+    $fp = fopen(getPasswordRateLimitFilePath(), 'c+');
+    if ($fp === false) {
+        return;
+    }
+
+    try {
+        if (!flock($fp, LOCK_EX)) {
+            return;
+        }
+
+        $state = readRateLimitState($fp);
+        $entry = $state[$key] ?? ['attempts' => [], 'lock_until' => 0];
+        $attempts = is_array($entry['attempts']) ? $entry['attempts'] : [];
+        $attempts = array_values(array_filter(
+            $attempts,
+            static fn ($ts): bool => is_int($ts) && $ts > ($now - PASSWORD_ATTEMPT_WINDOW_SECONDS)
+        ));
+        $attempts[] = $now;
+
+        if (count($attempts) >= PASSWORD_MAX_ATTEMPTS) {
+            $entry['attempts'] = [];
+            $entry['lock_until'] = $now + PASSWORD_LOCK_SECONDS;
+        } else {
+            $entry['attempts'] = $attempts;
+            $entry['lock_until'] = 0;
+        }
+
+        $state[$key] = $entry;
+        writeRateLimitState($fp, $state);
+    } finally {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+    }
+}
+
+function clearPasswordFailures(string $key): void
+{
+    $fp = fopen(getPasswordRateLimitFilePath(), 'c+');
+    if ($fp === false) {
+        return;
+    }
+
+    try {
+        if (!flock($fp, LOCK_EX)) {
+            return;
+        }
+
+        $state = readRateLimitState($fp);
+        unset($state[$key]);
+        writeRateLimitState($fp, $state);
+    } finally {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+    }
+}
+
+function checkPasswordRateLimit(string $key): array
+{
+    $now = time();
+    $fp = fopen(getPasswordRateLimitFilePath(), 'c+');
+    if ($fp === false) {
+        return ['allowed' => true, 'retry_after' => 0];
+    }
+
+    try {
+        if (!flock($fp, LOCK_EX)) {
+            return ['allowed' => true, 'retry_after' => 0];
+        }
+
+        $state = readRateLimitState($fp);
+        $entry = $state[$key] ?? ['attempts' => [], 'lock_until' => 0];
+
+        $entry['attempts'] = array_values(array_filter(
+            is_array($entry['attempts']) ? $entry['attempts'] : [],
+            static fn ($ts): bool => is_int($ts) && $ts > ($now - PASSWORD_ATTEMPT_WINDOW_SECONDS)
+        ));
+
+        $lockUntil = (int) ($entry['lock_until'] ?? 0);
+        if ($lockUntil > $now) {
+            $state[$key] = $entry;
+            writeRateLimitState($fp, $state);
+            return ['allowed' => false, 'retry_after' => $lockUntil - $now];
+        }
+
+        if (count($entry['attempts']) >= PASSWORD_MAX_ATTEMPTS) {
+            $entry['attempts'] = [];
+            $entry['lock_until'] = $now + PASSWORD_LOCK_SECONDS;
+            $state[$key] = $entry;
+            writeRateLimitState($fp, $state);
+            return ['allowed' => false, 'retry_after' => PASSWORD_LOCK_SECONDS];
+        }
+
+        $entry['lock_until'] = 0;
+        $state[$key] = $entry;
+        writeRateLimitState($fp, $state);
+        return ['allowed' => true, 'retry_after' => 0];
+    } finally {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+    }
+}
+
 function getPasswordVerifyDummyHash(): string
 {
     static $hash = null;
@@ -255,6 +372,13 @@ function getLoginRateLimitFilePath(): string
     return rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
         . DIRECTORY_SEPARATOR
         . LOGIN_RATE_LIMIT_FILE;
+}
+
+function getPasswordRateLimitFilePath(): string
+{
+    return rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
+        . DIRECTORY_SEPARATOR
+        . PASSWORD_RATE_LIMIT_FILE;
 }
 
 function readRateLimitState($fp): array

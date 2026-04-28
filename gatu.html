@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ガチャ筐体</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#f0f4f8;display:flex;justify-content:center;align-items:flex-end;min-height:100vh;padding:40px 20px 30px}
+  .scene{display:flex;justify-content:center;align-items:flex-end;gap:50px;flex-wrap:wrap}
+  .wrap{position:relative;display:inline-block}
+  canvas{display:block;cursor:pointer}
+  .ov{
+    position:absolute;inset:0;background:rgba(0,0,0,0.58);
+    display:flex;align-items:center;justify-content:center;
+    border-radius:8px;opacity:0;pointer-events:none;transition:opacity 0.25s;z-index:10;
+  }
+  .ov.show{opacity:1;pointer-events:all}
+  .rbox{
+    background:linear-gradient(135deg,#1a1a2e,#16213e);
+    border:3px solid #ffd700;border-radius:14px;
+    padding:22px 30px;text-align:center;
+    transform:scale(0);transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+    box-shadow:0 0 30px rgba(255,215,0,0.2);
+  }
+  .ov.show .rbox{transform:scale(1)}
+  .rs{font-size:28px;margin-bottom:5px}
+  .rr{font-family:'Courier New',monospace;font-size:11px;font-weight:700;letter-spacing:2px;margin-bottom:4px}
+  .rn{font-size:15px;font-weight:700;font-family:'Courier New',monospace;color:#fff;margin-bottom:12px}
+  .cbtn{
+    background:linear-gradient(135deg,#ffd700,#cc8800);color:#000;
+    border:none;border-radius:6px;padding:7px 20px;
+    font-family:'Courier New',monospace;font-size:11px;font-weight:700;cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="wrap">
+    <canvas id="gc" width="260" height="600"></canvas>
+    <div class="ov" id="ov">
+      <div class="rbox">
+        <div class="rs" id="rs"></div>
+        <div class="rr" id="rr"></div>
+        <div class="rn" id="rn"></div>
+        <button class="cbtn" id="cbtn">もう一度</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const prizes=[
+  {name:"伝説の剣",rarity:"SSR ★★★★★",color:"#ffd700",star:"★★★★★",ca:"#ffee88",cb:"#cc8800"},
+  {name:"幻の宝石",rarity:"SSR ★★★★★",color:"#ee44ff",star:"★★★★★",ca:"#ee88ff",cb:"#880099"},
+  {name:"竜の鱗",rarity:"SR ★★★★",color:"#ff6666",star:"★★★★",ca:"#ff9999",cb:"#cc1111"},
+  {name:"水晶の杖",rarity:"SR ★★★★",color:"#6699ff",star:"★★★★",ca:"#99bbff",cb:"#1133cc"},
+  {name:"銀の盾",rarity:"R ★★★",color:"#cccccc",star:"★★★",ca:"#dddddd",cb:"#888888"},
+  {name:"魔法の帽子",rarity:"R ★★★",color:"#55cc55",star:"★★★",ca:"#99ee99",cb:"#228822"},
+  {name:"鉄の剣",rarity:"N ★★",color:"#aaa888",star:"★★",ca:"#ccbb99",cb:"#665533"},
+  {name:"木の盾",rarity:"N ★",color:"#bb9966",star:"★",ca:"#ccaa77",cb:"#885522"},
+];
+const wts=[3,3,7,7,15,15,25,25];
+function roll(){
+  let t=wts.reduce((a,b)=>a+b,0),r=Math.random()*t;
+  for(let i=0;i<wts.length;i++){r-=wts[i];if(r<=0)return prizes[i];}
+  return prizes[prizes.length-1];
+}
+
+const CC=[
+  ["#ff4444","#ffffff"],["#ffcc00","#ffffff"],["#44aa44","#ffffff"],
+  ["#2299ee","#ffffff"],["#ff8800","#ffffff"],["#ff4444","#2299ee"],
+  ["#ffcc00","#44aa44"],["#ff8800","#2299ee"],["#44aa44","#ffffff"],
+  ["#ff4444","#ffcc00"]
+];
+
+const cv=document.getElementById('gc');
+const ctx=cv.getContext('2d');
+const W=260,H=600;
+
+let dialAngle=0;
+let animating=false;
+let dispensing=false;
+let dispCap=null;
+let dispY=0,dispAlpha=0;
+
+const BX=20;
+const BW=220;
+const CX=BX+BW/2;
+const TANK_TOP=14;
+const TANK_H=220;
+const TANK_BOT=TANK_TOP+TANK_H;
+const BODY_TOP=TANK_BOT+6;
+const BODY_H=230;
+const BODY_BOT=BODY_TOP+BODY_H;
+const LEG_Y=BODY_BOT;
+const BASE_Y=LEG_Y+28;
+
+function rrect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+function drawCap(x,y,w,h,cA,cB){
+  const r=w/2;
+  ctx.beginPath();ctx.arc(x+r,y+r,r,Math.PI,0);ctx.lineTo(x+w,y+h/2);ctx.lineTo(x,y+h/2);ctx.closePath();
+  ctx.fillStyle=cA;ctx.fill();
+  ctx.beginPath();ctx.moveTo(x,y+h/2);ctx.lineTo(x+w,y+h/2);ctx.arc(x+r,y+h-r,r,0,Math.PI);ctx.closePath();
+  ctx.fillStyle=cB;ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x,y+h/2);ctx.lineTo(x+w,y+h/2);ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,0.32)';
+  ctx.beginPath();ctx.ellipse(x+r*0.65,y+r*0.5,r*0.3,r*0.18,0,0,Math.PI*2);ctx.fill();
+}
+
+function drawTank(){
+  // 蓋
+  rrect(BX+10,TANK_TOP,BW-20,18,6);
+  ctx.fillStyle='#1a7acc';ctx.fill();
+  ctx.strokeStyle='#0d5fa0';ctx.lineWidth=2;ctx.stroke();
+
+  // ボトル本体（樽状）
+  ctx.beginPath();
+  ctx.moveTo(BX+30,TANK_TOP+18);
+  ctx.bezierCurveTo(BX-10,TANK_TOP+80,BX-10,TANK_TOP+160,BX+30,TANK_BOT);
+  ctx.lineTo(BX+BW-30,TANK_BOT);
+  ctx.bezierCurveTo(BX+BW+10,TANK_TOP+160,BX+BW+10,TANK_TOP+80,BX+BW-30,TANK_TOP+18);
+  ctx.closePath();
+  const gJar=ctx.createLinearGradient(BX,TANK_TOP,BX+BW,TANK_BOT);
+  gJar.addColorStop(0,'#e8f8ff');gJar.addColorStop(0.5,'#d0f0ff');gJar.addColorStop(1,'#b8e8f8');
+  ctx.fillStyle=gJar;ctx.fill();
+  ctx.strokeStyle='#3399dd';ctx.lineWidth=3;ctx.stroke();
+
+  // ハイライト
+  ctx.save();ctx.clip();
+  ctx.fillStyle='rgba(255,255,255,0.22)';
+  ctx.beginPath();ctx.ellipse(BX+38,TANK_TOP+70,16,55,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.12)';
+  ctx.beginPath();ctx.ellipse(BX+BW-30,TANK_TOP+50,8,30,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  // カプセル（内部）
+  const caps=[
+    [45,30],[95,22],[145,28],[185,38],
+    [30,75],[75,68],[120,62],[165,72],[195,62],
+    [50,118],[100,112],[148,118],[185,110],
+    [70,158],[120,154],[165,158],
+  ];
+  caps.forEach(([ox,oy],i)=>{
+    const [ca,cb]=CC[i%CC.length];
+    drawCap(BX+ox,TANK_TOP+oy,30,40,ca,cb);
+  });
+}
+
+function drawBody(){
+  rrect(BX,BODY_TOP,BW,BODY_H,4);
+  const gB=ctx.createLinearGradient(BX,BODY_TOP,BX+BW,BODY_TOP);
+  gB.addColorStop(0,'#1e90e0');gB.addColorStop(0.15,'#2aa0f0');gB.addColorStop(0.85,'#1a7acc');gB.addColorStop(1,'#0f5fa0');
+  ctx.fillStyle=gB;ctx.fill();
+  ctx.strokeStyle='#0d5080';ctx.lineWidth=3;ctx.stroke();
+
+  // ラベルプレート（左上）
+  rrect(BX+14,BODY_TOP+18,60,18,4);
+  ctx.fillStyle='rgba(255,255,255,0.75)';ctx.fill();
+
+  // 大きなトレイ／扉（左下）
+  rrect(BX+14,BODY_TOP+52,72,72,6);
+  const gTray=ctx.createLinearGradient(BX+14,BODY_TOP+52,BX+14,BODY_TOP+124);
+  gTray.addColorStop(0,'#c8d8e8');gTray.addColorStop(1,'#9aafbe');
+  ctx.fillStyle=gTray;ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=1;ctx.stroke();
+
+  // トレイ下の小さなラベル
+  rrect(BX+14,BODY_TOP+132,72,18,3);
+  ctx.fillStyle='rgba(255,255,255,0.55)';ctx.fill();
+
+  // コイン投入口（右上）
+  const slotX=BX+BW-34;
+  rrect(slotX,BODY_TOP+18,18,38,5);
+  const gSlot=ctx.createLinearGradient(slotX,0,slotX+18,0);
+  gSlot.addColorStop(0,'#8aaccc');gSlot.addColorStop(0.5,'#c0d8ec');gSlot.addColorStop(1,'#8aaccc');
+  ctx.fillStyle=gSlot;ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.2)';ctx.lineWidth=1;ctx.stroke();
+  rrect(slotX+5,BODY_TOP+26,8,5,2);
+  ctx.fillStyle='#222';ctx.fill();
+
+  // 青のアクセントプレート（右中）
+  rrect(BX+BW-40,BODY_TOP+68,24,36,4);
+  ctx.fillStyle='#1060aa';ctx.fill();
+  ctx.strokeStyle='#0a4080';ctx.lineWidth=1.5;ctx.stroke();
+
+  // 白い小さなラベル（右下）
+  rrect(BX+BW-46,BODY_TOP+116,36,18,3);
+  ctx.fillStyle='rgba(255,255,255,0.55)';ctx.fill();
+
+  // 中央のダイヤル
+  drawDial(CX, BODY_TOP+100, dialAngle);
+
+  // カプセル排出口スロット
+  const outX=CX-28,outY=BODY_BOT-30,outW=56,outH=22;
+  rrect(outX,outY,outW,outH,4);
+  ctx.fillStyle='#0a3050';ctx.fill();
+  ctx.strokeStyle='#000';ctx.lineWidth=1.5;ctx.stroke();
+  if(!dispensing){
+    rrect(outX+2,outY+2,outW-4,outH-4,3);
+    ctx.fillStyle='#1a2a38';ctx.fill();
+  }
+}
+
+function drawDial(cx,cy,angle){
+  const R=38;
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.35)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
+  ctx.beginPath();ctx.arc(cx,cy,R+5,0,Math.PI*2);
+  const gOuter=ctx.createRadialGradient(cx-5,cy-5,2,cx,cy,R+5);
+  gOuter.addColorStop(0,'#4499ff');gOuter.addColorStop(0.5,'#1a66cc');gOuter.addColorStop(1,'#0a3a88');
+  ctx.fillStyle=gOuter;ctx.fill();
+  ctx.restore();
+
+  ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);
+  const gY=ctx.createRadialGradient(cx-4,cy-4,2,cx,cy,R);
+  gY.addColorStop(0,'#ffe566');gY.addColorStop(0.6,'#f0b800');gY.addColorStop(1,'#c08000');
+  ctx.fillStyle=gY;ctx.fill();
+
+  ctx.fillStyle='#cc2200';
+  ctx.save();ctx.translate(cx+R-10,cy);
+  ctx.beginPath();ctx.moveTo(0,-4);ctx.lineTo(6,0);ctx.lineTo(0,4);ctx.closePath();ctx.fill();ctx.restore();
+  ctx.save();ctx.translate(cx,cy-(R-10));
+  ctx.beginPath();ctx.moveTo(-4,0);ctx.lineTo(0,-6);ctx.lineTo(4,0);ctx.closePath();ctx.fill();ctx.restore();
+
+  ctx.beginPath();ctx.arc(cx,cy,R-10,0,Math.PI*2);
+  const gG=ctx.createRadialGradient(cx,cy,R-24,cx,cy,R-10);
+  gG.addColorStop(0,'#cccccc');gG.addColorStop(1,'#999999');
+  ctx.fillStyle=gG;ctx.fill();
+
+  ctx.save();
+  ctx.translate(cx,cy);ctx.rotate(angle);
+  const kW=44,kH=18,kR=9;
+  ctx.shadowColor='rgba(0,0,0,0.25)';ctx.shadowBlur=4;ctx.shadowOffsetY=2;
+  rrect(-kW/2,-kH/2,kW,kH,kR);
+  const gK=ctx.createLinearGradient(-kW/2,-kH/2,-kW/2,kH/2);
+  gK.addColorStop(0,'#ffffff');gK.addColorStop(0.45,'#f2f2f2');gK.addColorStop(1,'#cccccc');
+  ctx.fillStyle=gK;ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='#aaaaaa';ctx.lineWidth=1;
+  rrect(-kW/2,-kH/2,kW,kH,kR);ctx.stroke();
+  ctx.strokeStyle='rgba(0,0,0,0.18)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(-12,0);ctx.lineTo(12,0);ctx.stroke();
+  ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=1;
+  for(let i=-8;i<=8;i+=3.5){
+    ctx.beginPath();ctx.moveTo(i,-kH/2+3);ctx.lineTo(i,kH/2-3);ctx.stroke();
+  }
+  ctx.beginPath();ctx.arc(0,0,3,0,Math.PI*2);
+  ctx.fillStyle='#999';ctx.fill();
+  ctx.restore();
+}
+
+function drawLegsBase(){
+  const legW=26;
+  [[BX+16,legW],[BX+BW-16-legW,legW]].forEach(([lx])=>{
+    rrect(lx,LEG_Y,legW,28,0);
+    const gL=ctx.createLinearGradient(lx,LEG_Y,lx+legW,LEG_Y);
+    gL.addColorStop(0,'#1a7acc');gL.addColorStop(0.5,'#2aa0f0');gL.addColorStop(1,'#1a7acc');
+    ctx.fillStyle=gL;ctx.fill();
+    ctx.strokeStyle='#0d5080';ctx.lineWidth=2;ctx.stroke();
+  });
+
+  rrect(BX-8,BASE_Y,BW+16,14,5);
+  const gBase=ctx.createLinearGradient(0,BASE_Y,0,BASE_Y+14);
+  gBase.addColorStop(0,'#1a7acc');gBase.addColorStop(1,'#0d5080');
+  ctx.fillStyle=gBase;ctx.fill();
+  ctx.strokeStyle='#0a3a60';ctx.lineWidth=2;ctx.stroke();
+}
+
+function drawDispenseCap(cap){
+  if(!dispensing||dispAlpha<=0)return;
+  ctx.save();
+  ctx.globalAlpha=Math.min(1,dispAlpha);
+  drawCap(CX-16,dispY,32,44,cap.ca,cap.cb);
+  ctx.restore();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  drawTank();
+  drawBody();
+  drawLegsBase();
+  if(dispensing&&dispCap) drawDispenseCap(dispCap);
+}
+
+function animDial(onDone){
+  const total=Math.PI*2*2.8;
+  const dur=700,start=performance.now(),startA=dialAngle;
+  const tick=(now)=>{
+    const t=Math.min(1,(now-start)/dur);
+    const e=t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    dialAngle=startA+total*e;draw();
+    if(t<1)requestAnimationFrame(tick);
+    else{dialAngle=startA+total;draw();onDone();}
+  };
+  requestAnimationFrame(tick);
+}
+
+function animDispense(cap,onDone){
+  dispensing=true;dispCap=cap;
+  const startY=BODY_BOT-24,endY=BODY_BOT-4;
+  const dur=550,start=performance.now();
+  const tick=(now)=>{
+    const t=Math.min(1,(now-start)/dur);
+    const e=1-Math.pow(1-t,3);
+    dispY=startY+(endY-startY)*e;
+    dispAlpha=t;draw();
+    if(t<1)requestAnimationFrame(tick);
+    else{setTimeout(()=>{dispensing=false;dispAlpha=0;draw();onDone();},400);}
+  };
+  requestAnimationFrame(tick);
+}
+
+function showResult(prize){
+  document.getElementById('rs').textContent=prize.star;
+  document.getElementById('rs').style.color=prize.color;
+  document.getElementById('rr').textContent=prize.rarity;
+  document.getElementById('rr').style.color=prize.color;
+  document.getElementById('rn').textContent=prize.name;
+  document.getElementById('ov').classList.add('show');
+}
+
+cv.addEventListener('click',()=>{
+  if(animating)return;
+  animating=true;
+  const p=roll();
+  animDial(()=>{
+    animDispense(p,()=>{
+      animating=false;
+      showResult(p);
+    });
+  });
+});
+
+document.getElementById('cbtn').addEventListener('click',e=>{
+  e.stopPropagation();
+  document.getElementById('ov').classList.remove('show');
+});
+
+draw();
+</script>
+</body>
+</html>

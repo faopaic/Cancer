@@ -49,6 +49,17 @@ if (!$rateLimit['allowed']) {
     ]);
 }
 
+// パスワード単位のレート制限（同一パスワードを多数のユーザーに試す攻撃対策）
+$passwordKey = buildPasswordRateLimitKey($password);
+$pwRateLimit = checkPasswordRateLimit($passwordKey);
+if (!$pwRateLimit['allowed']) {
+    jsonResponse(429, [
+        'success' => false,
+        'message' => '同じパスワードによる試行が多すぎます。しばらく待ってから再試行してください。',
+        'retry_after' => (int) $pwRateLimit['retry_after'],
+    ]);
+}
+
 try {
     $pdo = getPdo();
 
@@ -61,6 +72,7 @@ try {
 
     if (!$user || !$isValidPassword) {
         registerLoginFailure($rateLimitKey);
+        registerPasswordFailure($passwordKey);
         jsonResponse(401, [
             'success' => false,
             'message' => 'ユーザー名またはパスワードが正しくありません。',
@@ -76,6 +88,7 @@ try {
     }
 
     clearLoginFailures($rateLimitKey);
+    clearPasswordFailures($passwordKey);
 
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int) $user['id'];
