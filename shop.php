@@ -195,7 +195,7 @@ $plans = [
                         <?= $plan['bonus'] > 0 ? '＋ボーナス ' . number_format($plan['bonus']) . ' 枚' : '' ?>
                     </div>
                     
-                    <button class="buy-button" onclick="alert('<?= $plan['name'] ?>の購入処理（ダミー）を実行しました')">
+                    <button class="buy-button" data-amount="<?= ($plan['amount'] + ($plan['bonus'] ?? 0)) ?>" data-name="<?= htmlspecialchars($plan['name'], ENT_QUOTES, 'UTF-8') ?>">
                         ¥<?= number_format($plan['price']) ?>
                     </button>
                 </div>
@@ -203,6 +203,38 @@ $plans = [
         </div>
     </div>
 </main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.buy-button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const amount = parseInt(btn.dataset.amount || '0', 10);
+      const name = btn.dataset.name || '';
+      if (amount <= 0) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch('api/coins.php', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'buy', amount })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert(name + 'を購入しました。コイン: ' + data.coins + '枚');
+          try { localStorage.setItem('coins_update', String(Date.now())); } catch (e) {}
+        } else {
+          alert(data.message || '購入に失敗しました');
+        }
+      } catch (e) {
+        alert('通信エラー');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+});
+</script>
 
 </body>
 </html>

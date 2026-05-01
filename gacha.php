@@ -26,7 +26,11 @@ $logoutLabel = 'ログアウト';
       <div class="brand-title"><?= htmlspecialchars($brandTitle, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?></div>
       <div class="brand-subtitle" id="userGreeting"><?= htmlspecialchars($subtitle, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?></div>
     </div>
-    <button id="logoutButton" type="button" class="logout-button"><?= htmlspecialchars($logoutLabel, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?></button>
+    <nav class="nav-actions">
+      <a href="shop.php" class="shop-button" role="button">ショップ</a>
+      <div id="coinDisplay" class="coin-display" aria-live="polite" style="color: #fff; font-weight:700;">コイン: —</div>
+      <button id="logoutButton" type="button" class="logout-button"><?= htmlspecialchars($logoutLabel, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?></button>
+    </nav>
   </div>
 </header>
 
