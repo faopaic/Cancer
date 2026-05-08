@@ -23,6 +23,8 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    // CSRF 対策: 同一オリジンであることを確認
+    enforceSameOriginForStateChange();
     $body = readJsonBody();
     $action = $body['action'] ?? '';
     $amount = (int) ($body['amount'] ?? 0);

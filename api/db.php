@@ -34,7 +34,34 @@ function getPdo(): PDO
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 
+    ensureUsersCoinsColumn($pdo);
+
     return $pdo;
+}
+
+function ensureUsersCoinsColumn(PDO $pdo): void
+{
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+
+    $checked = true;
+
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table AND COLUMN_NAME = :column'
+    );
+    $stmt->execute([
+        'schema' => DB_NAME,
+        'table' => 'users',
+        'column' => 'coins',
+    ]);
+
+    if ((int) $stmt->fetchColumn() > 0) {
+        return;
+    }
+
+    $pdo->exec('ALTER TABLE users ADD COLUMN coins INT NOT NULL DEFAULT 0 AFTER password_hash');
 }
 
 function jsonResponse(int $statusCode, array $payload): void
@@ -371,14 +398,14 @@ function getLoginRateLimitFilePath(): string
 {
     return rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
         . DIRECTORY_SEPARATOR
-        . LOGIN_RATE_LIMIT_FILE;
+        . DB_NAME . '_' . LOGIN_RATE_LIMIT_FILE;
 }
 
 function getPasswordRateLimitFilePath(): string
 {
     return rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
         . DIRECTORY_SEPARATOR
-        . PASSWORD_RATE_LIMIT_FILE;
+        . DB_NAME . '_' . PASSWORD_RATE_LIMIT_FILE;
 }
 
 function readRateLimitState($fp): array
