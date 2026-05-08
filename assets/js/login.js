@@ -152,11 +152,13 @@ const postJson = async (url, payload) => {
 };
 
 setupPasswordToggles();
-updatePasswordStrength(registerPasswordInput.value);
-
-registerPasswordInput.addEventListener('input', () => {
+if (registerPasswordInput) {
   updatePasswordStrength(registerPasswordInput.value);
-});
+
+  registerPasswordInput.addEventListener('input', () => {
+    updatePasswordStrength(registerPasswordInput.value);
+  });
+}
 
 const validateLogin = () => {
   const username = document.getElementById('username').value.trim();
