@@ -488,7 +488,8 @@ main {
 .handle {
   position: absolute;
   left: 51%;
-  top:58%;
+  top: 58%;
+  --handle-rotation: 0rad;
   transform: translate(-50%, -50%);
   width: clamp(50px, 7vw, 100px);
   height: clamp(50px, 7vw, 100px);
@@ -502,7 +503,8 @@ main {
   justify-content: center;
   cursor: grab;
   touch-action: none;
-  transform-origin: center;
+  transform-origin: 50% 50%;
+  will-change: transform;
 }
 
 .handle:active {
@@ -520,6 +522,9 @@ main {
 
 .handle-inner {
   position: relative;
+  transform: rotate(var(--handle-rotation));
+  transform-origin: center;
+  will-change: transform;
   width: clamp(36px, 5vw, 70px);
   height: clamp(14px, 2vw, 26px);
   background: linear-gradient(180deg, #f7f7f7 0%, #e2e2e0 100%);

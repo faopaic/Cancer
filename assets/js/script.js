@@ -173,7 +173,7 @@ const initGacha = async () => {
     spinAmount += delta; // 回転量を加算
     lastAngle = angle;
 
-    handle.style.transform = `rotate(${currentRotation}rad)`;
+    handle.style.setProperty('--handle-rotation', `${currentRotation}rad`);
   });
 
   handle.addEventListener('pointerup', () => {

@@ -16,7 +16,7 @@ $logoutLabel = 'ログアウト';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?></title>
-    <link rel="stylesheet" href="<?= htmlspecialchars($assetBase, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?>/css/style.css?v=20260424">
+    <link rel="stylesheet" href="<?= htmlspecialchars($assetBase, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?>/css/style.css?v=20260512b">
   </head>
   <body<?= $bodyClass !== '' ? ' class="' . htmlspecialchars($bodyClass, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '"' : '' ?>>
 
@@ -51,7 +51,7 @@ $logoutLabel = 'ログアウト';
 </main>
 
 <?php if ($scriptFile !== ''): ?>
-    <script src="<?= htmlspecialchars($assetBase, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?>/js/<?= htmlspecialchars($scriptFile, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?>.js?v=20260424"></script>
+    <script src="<?= htmlspecialchars($assetBase, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?>/js/<?= htmlspecialchars($scriptFile, ENT_QUOTES | ENT_HTML5, 'UTF-8') ?>.js?v=20260512b"></script>
 <?php endif; ?>
   </body>
 </html>
